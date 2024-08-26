@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<head>
+    <title>Entregable VR</title>
+    <script src='https://code.jquery.com/jquery-1.12.4.js'></script>
+    <script src='https://code.jquery.com/ui/1.12.1/jquery-ui.js'></script>
+
+<body>
+    <script>
+        const url = 'https://api.restful-api.dev/objects'
+
+        let dataBackend = []
+        var body = document.querySelector('body')
+
+        window.onload = () => {
+            document.getElementById('name').focus()
+            $('#popUp').hide()
+            readObjects()
+
+        }
+
+        function readObjects() {
+            get(url)
+                .then((response) => {
+                    dataBackend = response
+
+                    let table = document.getElementsByTagName('tbody')[0]
+                    table.innerHTML = ''
+                    dataBackend.forEach((data) => {
+                        if (data.id && data.name && data.data && data.data.color && data.data.capacity){
+                            let newRow = table.insertRow()
+                            let cell0 = newRow.insertCell(0)
+                            let cell1 = newRow.insertCell(1)
+                            let cell2 = newRow.insertCell(2)
+                            let cell3 = newRow.insertCell(3)
+
+                            cell0.innerHTML = data.id
+                            cell1.innerHTML = data.name
+                            cell2.innerHTML = data.data.color
+                            cell3.innerHTML = data.data.capacity
+                        }
+                        
+                    })
+
+                    console.log(response)
+                })
+                .catch((reason) => {
+                    console.log(Error(reason))
+                })
+        }
+
+        function createObject() {
+            if (document.getElementById('name').value.trim() !== '' &&
+                document.getElementById('color').value.trim() !== '' &&
+                document.getElementById('capacity').value.trim() !== '') {
+                add().then((response) => {
+                    var object = JSON.parse(response)
+                    var data = JSON.parse(object.data)
+                    object.data = data
+                    insertTr(object, true)
+                }).catch(reason => {
+                    console.error(reason)
+                })
+            }
+
+        }
+
+        function deleteObject(object) {
+            remove(object.id).then(() => {
+                var rows = document.querySelectorAll('tr')
+                rows.forEach(row => {
+                    if (row.getAttribute('id') === object.id) {
+                        row.remove()
+                        clearInputs()
+                    }
+                })
+            }).catch(reason => {
+                console.error(reason)
+            })
+
+        }
+
+        function viewObject(object) {
+            var data = JSON.parse(object.data)
+            document.getElementsByName('id2')[0].value = object.id
+            document.getElementsByName('name2')[0].value = object.name
+            document.getElementsByName('color2')[0].value = data.color
+            document.getElementsByName('capacity2')[0].value = data.capacity
+            $('#popUp').dialog({
+                closeText: ''
+            }).css('font-size', '20px')
+        }
+
+        function updateObject() {
+            if (document.getElementsByName('name2')[0].value.trim() !== '' &&
+                document.getElementsByName('color2')[0].value.trim() !== '' &&
+                document.getElementsByName('capacity2')[0].value.trim() !== '') {
+                update().then(() => {
+                    var rows = document.querySelectorAll('tr')
+                    rows.forEach(row => {
+                        if (row.getAttribute('id') === document.getElementsByName('id2')[0].value) {
+                            var data = JSON.stringify({
+                                'color': document.getElementsByName('color2')[0].value,
+                                'capacity': document.getElementsByName('capacity2')[0].value
+                            })
+                            var object = JSON.stringify({
+                                'id': document.getElementsByName('id2')[0].value,
+                                'name': document.getElementsByName('name2')[0].value,
+                                'data': data
+                            })
+                            row.childNodes[1].innerHTML = document.getElementsByName('name2')[0].value,
+                            row.childNodes[2].innerHTML = document.getElementsByName('color2')[0].value,
+                            row.childNodes[3].innerHTML = document.getElementsByName('capacity2')[0].value
+                            row.childNodes[4].innerHTML = `<button onclick='viewObject(${object})'>VIEW</button>`
+                            row.childNodes[5].innerHTML = `<button onclick='deleteObject(${object})'>DELETE</button>`
+                        }
+                    })
+                    $('#popUp').dialog('close')
+                    clearInputs()
+                }).catch(reason => {
+                    console.error(reason)
+                })
+            }
+
+        }
+
+        function save() {
+
+            add().then(() => {
+                readObjects()
+            }).catch((error) => {
+                console.log(error)
+            })
+        }
+
+        //promesas
+
+        function get() {
+            return new Promise(function (resolve, reject) {
+                var request = new XMLHttpRequest()
+                request.open('GET', url)
+                request.responseType = 'json'
+                request.onload = function () {
+                    if (request.status == 200) {
+                        resolve(request.response)
+                    }
+                    else {
+                        reject(Error('Data couldnt be loaded. Error: ' + request.statusText))
+                    }
+                }
+
+                request.onerror = function () {
+                    reject(Error('Network error'))
+                }
+                request.send()
+            })
+        }
+
+        function add() {
+            return new Promise(function (resolve, reject) {
+                var request = new XMLHttpRequest()
+                request.open('POST', url)
+                request.setRequestHeader('Content-Type', 'application/json')
+                var data = JSON.stringify({
+                    'color': document.getElementById('color').value,
+                    'capacity': document.getElementById('capacity').value
+                })
+                var object = JSON.stringify({
+                    'name': document.getElementById('name').value,
+                    'data': data
+                })
+                request.onload = function () {
+
+                    if (request.status == 200) {
+                        resolve(request.response)
+                    }
+                    else {
+                        reject(Error('Data couldnt be loaded. Error: ' + request.statusText))
+                    }
+                }
+
+                request.onerror = function () {
+                    reject(Error('Network error'))
+                }
+                request.send(object)
+            })
+
+        }
+
+        function remove(id) {
+            return new Promise(function(resolve, reject) {
+                var request = new XMLHttpRequest()
+                request.open('DELETE', url + '/' + id)
+                request.onload = () => {
+                    if (request.status == 200) {
+                        resolve(request.response)
+                    } else {
+                        reject(Error(request.statusText))
+                    }
+                }
+                request.onerror = function () {
+                    reject(Error('Error: unexpected network error.'))
+                }
+                request.send()
+            })
+
+        }
+
+        function update() {
+            return new Promise((resolve, reject) => {
+                var request = new XMLHttpRequest()
+                request.open('PUT', url + '/' + document.getElementsByName('id2')[0].value)
+                request.setRequestHeader('Content-Type', 'application/json')
+                var object = JSON.stringify({
+                    'name': document.getElementById('name').value,
+                    'data': {
+                        'color':document.getElementById('color').value,
+                        'capacity':document.getElementById('capacity')
+                    }
+                })
+                request.onload = () => {
+                    if (request.status == 200) {
+                        resolve(request.response)
+                    } else {
+                        reject(request.statusText)
+                    }
+                }
+                request.onerror = () => {
+                    reject(request.responseText)
+                }
+                request.send(object)
+            })
+
+        }
+
+        function insertTr(object, canChange) {
+            var tbody = document.querySelector('tbody')
+            var row = tbody.insertRow()
+            row.setAttribute('id', object.id)
+            var id = row.insertCell()
+            id.innerHTML = object.id
+            var name = row.insertCell()
+            name.innerHTML = object.name
+            var color = row.insertCell()
+            color.innerHTML = object.data.color
+            var capacity = row.insertCell()
+            capacity.innerHTML = object.data.capacity
+            var data = JSON.stringify({
+                'color': object.data.color,
+                'capacity': object.data.capacity
+            })
+            var object = JSON.stringify({
+                'id': object.id,
+                'name': object.name,
+                'data': data
+            })
+            if (canChange) {
+                var view = row.insertCell()
+                view.innerHTML = `<button onclick='viewObject(${object})'>VIEW</button>`
+                var del = row.insertCell()
+                del.innerHTML = `<button onclick='deleteObject(${object})'>DELETE</button>`
+            }
+            clearInputs()
+        }
+
+        function clearInputs() {
+            document.getElementById('name').value = ''
+            document.getElementById('color').value = ''
+            document.getElementById('capacity').value = ''
+            document.getElementById('name').focus()
+        }
+
+
+
+
+    </script>
+
+    <table id= style="border: 2px solid">
+        <thead>
+            <tr>
+                <th style='text-align: left'>ID</th>
+                <th style='text-align: left'>Nombre</th>
+                <th style='text-align: left'>Color</th>
+                <th style='text-align: left'>Capacidad</th>
+                <th colspan="2"></th>
+
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+        <tfoot>
+            <tr>
+                <td></td>
+                <td><input id='name'></td>
+                <td><input id='color'></td>
+                <td><input id='capacity'></td>
+                <td  colspan='1' style='text-align: center'><button onclick="createObject()">ADD</button></td>
+
+            </tr>
+        </tfoot>
+    </table>
+
+    <div id='popUp' style="overflow-x: hidden">
+        <table>
+            <tr>
+                <td><label for='id2' style='font-weight: bold'>ID</label></td>
+                <td><input name='id2' style='text-align: right' readonly /></td>
+            </tr>
+            <tr>
+                <td><label for='name2' style='font-weight: bold'>NAME</label></td>
+                <td><input name='name2' style='text-align: right' /></td>
+            </tr>
+            <tr>
+                <td><label for='color2' style='font-weight: bold'>COLOR</label></td>
+                <td><input name='color2' style='text-align: right' /></td>
+            </tr>
+            <tr>
+                <td><label for='capacity2' style='font-weight: bold'>PRICE</label></td>
+                <td><input name='capacity2' style='text-align: right' /></td>
+            </tr>
+            <tr>
+                <td colspan='2' style='text-align: center'><button onclick='updateObject()'>UPDATE</button></td>
+            </tr>
+        </table>
+    </div> 
+
+</body>
+
+</html>
